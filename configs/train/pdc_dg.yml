@@ -1,0 +1,50 @@
+model:
+  type: pdc
+  checkpoint:
+    path: ./trained_models/RDE2.pt
+    type:  CircularSplineRotamerDensityEstimator
+  encoder:
+    node_feat_dim: 128
+    pair_feat_dim: 64
+    num_layers: 3
+    num_nearest_neighbors: 8
+    norm_coors: True
+    update_coors_mean: True
+    update_coors_var: True
+    learnable_var: True
+    dropout: 0.2
+  use_plm: True
+  resolution: CA
+
+data:
+  reset: False
+  use_plm: True
+  train_pdb_root: ./data/T50/train
+  train_csv_path: ./data/T50/train.csv
+  test_root: ./data/T50/test
+  cache_dir: ./data/T50_cache
+  transform:
+  - type: select_atom
+    resolution: backbone+CB
+  - type: selected_interface_region_padding_patch
+    fix_size: 128
+
+train:
+  loss_weights:
+    regression: 1.0
+  max_iters: 10_000
+  val_freq: 50
+  batch_size: 32
+  seed: 2023
+  max_grad_norm: 100.0
+  optimizer:
+    type: adam
+    lr: 3.e-4  # lr should be small for ESM-2 embeddings (default: 3e-4)
+    weight_decay: 0.0
+    beta1: 0.9
+    beta2: 0.999
+  scheduler:
+    type: plateau
+    factor: 0.8
+    patience: 5
+    min_lr: 1.e-6
