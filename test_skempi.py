@@ -29,7 +29,13 @@ if __name__ == '__main__':
         print(config)
 
         dataset_mgr = SkempiDatasetManager(config, num_cvfolds=num_cvfolds, num_workers=args.num_workers, logger=logger, )
-        cv_mgr = CrossValidation(model_factory=DDG_RDE_Network, config=config, num_cvfolds=num_cvfolds).to(args.device)
+        if args.backbone == 'ga':
+            from rde.models.rde_ddg import DDG_RDE_Network
+
+            cv_mgr = CrossValidation(model_factory=DDG_RDE_Network, config=config, num_cvfolds=num_cvfolds).to(args.device)
+        else:
+            from rde.models.pdc_ddg_refine import DDG_PDC_Network
+            cv_mgr = CrossValidation(model_factory=DDG_PDC_Network, config=config, num_cvfolds=num_cvfolds).to(args.device)
         print('Loading state dict...')
         # cv_mgr.load_state_dict(ckpt['model'])
 

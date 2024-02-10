@@ -58,9 +58,9 @@ if __name__ == '__main__':
     if config.model.type == 'ga':
         from rde.models.rde_ddg import DDG_RDE_Network
         cv_mgr = CrossValidation(model_factory=DDG_RDE_Network, config=config, num_cvfolds=args.num_cvfolds).to(args.device)
-    elif config.model.type.lower() == 'pdc_mlm':
-        from rde.models.pdc import PDC_Network
-        cv_mgr = CrossValidation(model_factory=PDC_Network, config=config, num_cvfolds=args.num_cvfolds, direct_tune=True).to(args.device)
+    elif config.model.type.lower() == 'pdc':
+        from rde.models.pdc_ddg_refine import DDG_PDC_Network
+        cv_mgr = CrossValidation(model_factory=DDG_PDC_Network, config=config, num_cvfolds=args.num_cvfolds, direct_tune=True).to(args.device)
     else:
         raise ValueError('Please use a legal model type.')
     logger.info(f'Number of parameters: {count_parameters(cv_mgr.get(0)[0]) / 1e6:.3f}M')

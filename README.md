@@ -27,5 +27,5 @@ python train_redo.py ./configs/train/pdc_redo.yml
 ### Train RDE-Network (DDG)
 
 ```bash
-python train_skempi_abbind.py ./configs/train/pdc_ddg.yml
+python train_skempi_abbind.py ./configs/train/pdc_ddg_refine.yml
 ```
