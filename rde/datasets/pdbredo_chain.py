@@ -252,7 +252,9 @@ class PDBRedoChainDataset(Dataset):
                 pdbcode, chain = pdbchain_list[index[1]]
 
         data = self._get_from_db(pdbcode)  # Made a copy
-        data['clust_name'] = clust_name    # Record cluster info
+
+        if self.iter_ != 'cluster':
+            data['clust_name'] = clust_name    # Record cluster info
 
         if self.use_plm:
             data['plm_wt'] = torch.load(os.path.join(self.plm_path, f'{pdbcode}.pt'))['representations'][33]

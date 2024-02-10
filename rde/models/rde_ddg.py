@@ -7,8 +7,6 @@ from rde.modules.encoders.pair import ResiduePairEncoder
 from rde.modules.encoders.attn import GAEncoder
 from rde.utils.protein.constants import BBHeavyAtom
 from .rde import CircularSplineRotamerDensityEstimator
-from rde.models.rde_mlm import MaskedLanguageModelingDensityEstimator
-from rde.models.backbone import BackboneNetwork
 
 
 class DDG_RDE_Network(nn.Module):
@@ -22,12 +20,7 @@ class DDG_RDE_Network(nn.Module):
             self.ckpt_type = cfg.checkpoint.type
             print(f'Loading {cfg.checkpoint.type} from {cfg.checkpoint.path}')
             ckpt = torch.load(cfg.checkpoint.path, map_location='cpu')
-            if self.ckpt_type == 'CircularSplineRotamerDensityEstimator':
-                self.rde = CircularSplineRotamerDensityEstimator(ckpt['config'].model)
-            elif self.ckpt_type == 'MaskedLanguageModelingDensityEstimator':
-                self.rde = MaskedLanguageModelingDensityEstimator(ckpt['config'].model)
-            elif self.ckpt_type == 'BackboneNetwork':
-                self.rde = BackboneNetwork(ckpt['config'].model)
+            self.rde = CircularSplineRotamerDensityEstimator(ckpt['config'].model)
             self.rde.load_state_dict(ckpt['model'])
             for p in self.rde.parameters():
                 p.requires_grad_(False)
@@ -74,10 +67,15 @@ class DDG_RDE_Network(nn.Module):
 
         return x
 
-    def forward(self, batch):
+    def forward(self, batch, return_feat=False):
         batch_wt = {k: v for k, v in batch.items()}
         batch_mt = {k: v for k, v in batch.items()}
         batch_mt['aa'] = batch_mt['aa_mut']
+
+        if return_feat:   # return pretrained feature
+            H_wt = self._encode_rde(batch_wt)
+            H_mt = self._encode_rde(batch_mt)
+            return {'feat_wt': H_wt, 'feat_mt': H_mt}
 
         h_wt = self.encode(batch_wt)
         h_mt = self.encode(batch_mt)

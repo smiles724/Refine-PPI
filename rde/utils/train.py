@@ -1,9 +1,9 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import matplotlib.pyplot as plt
 
-from rde.utils.protein.constants import chi_pi_periodic, AA
 from rde.utils.misc import BlackHole
+from rde.utils.protein.constants import chi_pi_periodic, AA
 
 
 def get_optimizer(cfg, model):
@@ -176,6 +176,8 @@ class CrossValidation(object):
                 self.models[i].load_state_dict(ckpt['model'], strict=False)  # ignore unmatched keys
         else:
             self.models = [model_factory(config.model) for _ in range(num_cvfolds)]
+            if len(config.gpu) > 1:     # data parallel
+                self.models = [torch.nn.DataParallel(model, device_ids=[int(i) for i in config.gpu.split(',')]) for model in self.models]
 
         self.optimizers = []
         self.schedulers = []

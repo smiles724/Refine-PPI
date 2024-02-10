@@ -11,6 +11,7 @@ class Fragmentv2(enum.IntEnum):
     Ligand = 1
     Receptor = 2
 
+
 ##
 # Residue identities
 non_standard_residue_substitutions = {'2AS': 'ASP', '3AH': 'HIS', '5HP': 'GLU', 'ACL': 'ARG', 'AGM': 'ARG', 'AIB': 'ALA', 'ALM': 'ALA', 'ALO': 'THR', 'ALY': 'LYS', 'ARM': 'ARG',
@@ -37,7 +38,7 @@ three_to_one = {'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D', 'CYS': 'C', 'GLN
                 'PHE': 'F', 'PRO': 'P', 'PYL': 'O', 'SER': 'S', 'SEC': 'U', 'THR': 'T', 'TRP': 'W', 'TYR': 'Y', 'VAL': 'V', 'ASX': 'B', 'GLX': 'Z', 'XAA': 'X', 'XLE': 'J'}
 
 
-class AA(enum.IntEnum):
+class AA(enum.IntEnum):   # align with biopython's protein_letters_1to3
     ALA = 0
     CYS = 1
     ASP = 2

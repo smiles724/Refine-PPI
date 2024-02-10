@@ -1,13 +1,15 @@
 import math
+
 import torch
 from torch.utils.data._utils.collate import default_collate
+from torch_geometric.data import Batch
 
 DEFAULT_PAD_VALUES = {'aa': 21, 'aa_masked': 21, 'aa_true': 21, 'chain_nb': -1, 'pos14': 0.0, 'chain_id': ' ', 'icode': ' ', 'clust_name': ' '}
 
 
 class PaddingCollate(object):
 
-    def __init__(self, length_ref_key='aa', pad_values=DEFAULT_PAD_VALUES, eight=True):
+    def __init__(self, length_ref_key='aa', pad_values=DEFAULT_PAD_VALUES, eight=True, ):
         super().__init__()
         self.length_ref_key = length_ref_key
         self.pad_values = pad_values
@@ -16,7 +18,7 @@ class PaddingCollate(object):
     @staticmethod
     def _pad_last(x, n, value=0):
         if isinstance(x, torch.Tensor):
-            assert x.size(0) <= n
+            assert x.size(0) <= n, f'{x.shape} is not correct for {n}'
             if x.size(0) == n:
                 return x
             pad_size = [n - x.size(0)] + list(x.shape[1:])
@@ -25,8 +27,7 @@ class PaddingCollate(object):
         elif isinstance(x, list):
             pad = [value] * (n - len(x))
             return x + pad
-        else:
-            return x
+        return x
 
     @staticmethod
     def _get_pad_mask(l, n):
@@ -45,21 +46,33 @@ class PaddingCollate(object):
         return self.pad_values[key]
 
     def __call__(self, data_list):
-        max_length = max([data[self.length_ref_key].size(0) for data in data_list])
-        keys = self._get_common_keys(data_list)
-
+        # Structures
+        data_structure_list = [i[0] for i in data_list]
+        max_length = max([data[self.length_ref_key].size(0) for data in data_structure_list])
+        keys = self._get_common_keys(data_structure_list)
         if self.eight:
             max_length = math.ceil(max_length / 8) * 8
         data_list_padded = []
-        for data in data_list:
-            data_padded = {k: self._pad_last(v, max_length, value=self._get_pad_value(k)) for k, v in data.items() if k in keys}
+        for data in data_structure_list:
+            if 'rde_feat_mt' in data.keys():
+                assert len(data['rde_feat_wt']) >= max_length, f"{data['rde_feat_wt'].shape, max_length}"
+                data['rde_feat_wt'] = data['rde_feat_wt'][:max_length]
+                data['rde_feat_mt'] = data['rde_feat_mt'][:max_length]
+            data_padded = {k: self._pad_last(v, max_length, value=self._get_pad_value(k)) for k, v in data.items() if k in keys and k not in ['surf_feat_mt', 'surf_feat_wt']}
             data_padded['mask'] = self._get_pad_mask(data[self.length_ref_key].size(0), max_length)
-
-            if 'patch_1' in data.keys():   # TODO: support more patches
+            if 'surf_feat_mt' in data.keys():
+                data_padded['surf_feat_mt'] = data.pop('surf_feat_mt')
+                data_padded['surf_feat_wt'] = data.pop('surf_feat_wt')
+            if 'patch_1' in data.keys():                     # TODO: support more patches
                 data_padded['patch_1'] = {k: self._pad_last(v, max_length, value=self._get_pad_value(k)) for k, v in data['patch_1'].items() if k in keys}
                 data_padded['patch_1']['mask'] = self._get_pad_mask(data['patch_1'][self.length_ref_key].size(0), max_length)
-
             data_list_padded.append(data_padded)
         batch = default_collate(data_list_padded)
         batch['size'] = len(data_list_padded)
+
+        # Surface
+        data_surface_list = [i[1] for i in data_list]
+        batch_surface = Batch.from_data_list(data_surface_list, follow_batch=["resxyz", "xyz_ligand", "xyz_receptor"]).to_dict()
+        # batch_surface = Batch.from_data_list(data_surface_list, follow_batch=["resxyz_ligand", "xyz_ligand", "resxyz_receptor", "xyz_receptor"]).to_dict()
+        batch['surface'] = batch_surface
         return batch

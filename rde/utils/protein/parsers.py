@@ -1,6 +1,5 @@
 import torch
 from Bio.PDB import Selection
-from Bio.PDB.MMCIFParser import MMCIFParser
 from Bio.PDB.Residue import Residue
 from easydict import EasyDict
 
@@ -22,21 +21,6 @@ def _get_residue_heavyatom_info(res: Residue):
             mask_heavyatom[idx] = True
             bfactor_heavyatom[idx] = res[atom_name].get_bfactor()
     return pos_heavyatom, type_heavyatom, mask_heavyatom, bfactor_heavyatom
-
-
-def parse_mmcif_assembly(path, model_id, assembly_id=0, unknown_threshold=1.0):
-    parser = MMCIFParser()
-    structure = parser.get_structure(None, path)
-    mmcif_dict = parser._mmcif_dict
-    if '_pdbx_struct_assembly_gen.asym_id_list' not in mmcif_dict:
-        return parse_biopython_structure(structure[model_id], unknown_threshold=unknown_threshold)
-    else:
-        assemblies = [tuple(chains.split(',')) for chains in mmcif_dict['_pdbx_struct_assembly_gen.asym_id_list']]
-        label_to_auth = {}
-        for label_asym_id, auth_asym_id in zip(mmcif_dict['_atom_site.label_asym_id'], mmcif_dict['_atom_site.auth_asym_id']):
-            label_to_auth[label_asym_id] = auth_asym_id
-        model_real = list({structure[model_id][label_to_auth[ch]] for ch in assemblies[assembly_id]})
-        return parse_biopython_structure(model_real)
 
 
 def parse_biopython_structure(entity, interface_idx=None, sasa=None, unknown_threshold=1.0, name=None):

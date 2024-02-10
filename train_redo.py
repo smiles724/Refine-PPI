@@ -1,7 +1,6 @@
 import argparse
 import os
 import shutil
-import functools
 
 import torch.utils.tensorboard
 from torch.nn.utils import clip_grad_norm_
@@ -13,7 +12,6 @@ torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
 from rde.utils.train import *
-from rde.datasets import SAbDabDataset, get_transform
 from rde.utils.data import PaddingCollate
 from rde.datasets.pdbredo_chain import get_pdbredo_chain_dataset
 from rde.utils.misc import inf_iterator, load_config, seed_all, get_logger, get_new_log_dir
@@ -53,39 +51,24 @@ if __name__ == '__main__':
 
     # Data
     logger.info('Loading datasets...')
-    if config.data.type == 'pdbredo_chain':
-        train_dataset = get_pdbredo_chain_dataset('train', config.data, use_plm=config.model.use_plm)
-        val_dataset = get_pdbredo_chain_dataset('val', config.data, use_plm=config.model.use_plm)
-    elif config.data.type == 'sabdab_interface':
-        dataset_ = functools.partial(SAbDabDataset, processed_dir=config.data.processed_dir, use_plm=config.data.use_plm,
-                                     transform=get_transform(config.data.transform) if 'transform' in config.data else None, )
-        train_dataset = dataset_(split='train')
-        val_dataset = dataset_(split='val')
-
+    train_dataset = get_pdbredo_chain_dataset('train', config.data, use_plm=config.model.use_plm)
+    val_dataset = get_pdbredo_chain_dataset('val', config.data, use_plm=config.model.use_plm)
     train_loader = DataLoader(train_dataset, batch_size=config.train.batch_size, shuffle=True, collate_fn=PaddingCollate(), num_workers=args.num_workers)
     train_iterator = inf_iterator(train_loader)
     val_loader = DataLoader(val_dataset, batch_size=config.train.batch_size, shuffle=False, collate_fn=PaddingCollate(), num_workers=args.num_workers)
     logger.info('Train %d | Val %d' % (len(train_dataset), len(val_dataset)))
 
     # Model & Optimizer & Scheduler
+    from rde.models.pdc import PDC_Network
     if config.model.checkpoint.path:
-        from rde.models.backbone import BackboneNetwork
-        ckpt = torch.load(config.model.checkpoint.path, map_location='cpu')
-        model = BackboneNetwork(ckpt['config'].model).to(args.device)
+        ckpt = torch.load(config.model.checkpoint.path, ma_location='cpu')
+        model = PDC_Network(ckpt['config'].model).to(args.device)
         print(f'Loading pre-trained weights from {config.model.checkpoint.path}...')
         model.load_state_dict(ckpt['model'])
         model.target = 'chi_angle'
     else:
         logger.info('Building model from scratch...')
-        if config.model.type == 'equiformer':
-            from rde.models.equiformer import EquiformerNet
-            model = EquiformerNet(config.model).to(args.device)
-        elif config.model.type == 'pdc':
-            from rde.models.pdc import PDC_Network
-            model = PDC_Network(config.model).to(args.device)
-        else:
-            from rde.models.backbone import BackboneNetwork
-            model = BackboneNetwork(config.model).to(args.device)
+        model = PDC_Network(config.model).to(args.device)
 
     logger.info('Number of parameters: %d M' % (count_parameters(model) / 1e6))
     optimizer = get_optimizer(config.train.optimizer, model)

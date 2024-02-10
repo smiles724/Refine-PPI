@@ -1,8 +1,8 @@
 model:
   type: pdc
   checkpoint:
-    path: ./trained_models/83000.pt
-    type: PDCNet
+    path: ./trained_models/RDE.pt
+    type:  CircularSplineRotamerDensityEstimator
   encoder:
     node_feat_dim: 128
     pair_feat_dim: 64
@@ -12,7 +12,7 @@ model:
     update_coors_mean: True
     update_coors_var: True
     learnable_var: True
-  use_sasa: True
+    dropout: 0.2
   use_plm: False
   resolution: CA
 
@@ -21,8 +21,6 @@ data:
   skempi_csv_path: ./data/SKEMPI_v2/skempi_v2.csv
   skempi_pdb_dir: ./data/SKEMPI_v2/PDBs
   cache_dir: ./data/SKEMPI_v2_cache
-  predicted_structure: False
-  use_plm: False
   transform:
   - type: select_atom
     resolution: backbone+CB
@@ -32,16 +30,15 @@ data:
 
 train:
   loss_weights:
-    pos_refine: 10.0
     regression: 1.0
   max_iters: 30_000
-  val_freq: 500
+  val_freq: 1000
   batch_size: 32
   seed: 2023
   max_grad_norm: 100.0
   optimizer:
     type: adam
-    lr: 3.e-4
+    lr: 3.e-4  # lr should be small for ESM-2 embeddings (default: 3e-4)
     weight_decay: 0.0
     beta1: 0.9
     beta2: 0.999

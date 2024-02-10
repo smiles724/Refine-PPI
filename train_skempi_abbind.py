@@ -22,6 +22,7 @@ if __name__ == '__main__':
     parser.add_argument('--logdir', type=str, default='./logs_skempi')
     parser.add_argument('--debug', action='store_true', default=False)
     parser.add_argument('--device', type=str, default='cuda')
+    parser.add_argument('--gpu', type=str, default='0')   # cannot parallel because of torch and torch_geometric
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--resume', type=str, default=None)
     args = parser.parse_args()
@@ -29,6 +30,7 @@ if __name__ == '__main__':
     # Load configs
     config, config_name = load_config(args.config)
     seed_all(config.train.seed)
+    config.gpu = args.gpu
 
     # Logging
     if args.debug:
@@ -56,16 +58,12 @@ if __name__ == '__main__':
     if config.model.type == 'ga':
         from rde.models.rde_ddg import DDG_RDE_Network
         cv_mgr = CrossValidation(model_factory=DDG_RDE_Network, config=config, num_cvfolds=args.num_cvfolds).to(args.device)
-    elif config.model.type.lower() == 'pdc':
-        from rde.models.pdc_ddg import DDG_PDC_Network
-        cv_mgr = CrossValidation(model_factory=DDG_PDC_Network, config=config, num_cvfolds=args.num_cvfolds).to(args.device)
     elif config.model.type.lower() == 'pdc_mlm':
         from rde.models.pdc import PDC_Network
         cv_mgr = CrossValidation(model_factory=PDC_Network, config=config, num_cvfolds=args.num_cvfolds, direct_tune=True).to(args.device)
     else:
-        from rde.models.equiformer_ddg import DDG_Equiformer
-        cv_mgr = CrossValidation(model_factory=DDG_Equiformer, config=config, num_cvfolds=args.num_cvfolds).to(args.device)
-    logger.info(f'Number of parameters: {count_parameters(cv_mgr.get(0)[0]) / 1e6:.2f}M')
+        raise ValueError('Please use a legal model type.')
+    logger.info(f'Number of parameters: {count_parameters(cv_mgr.get(0)[0]) / 1e6:.3f}M')
     it_first = 1
 
     # Resume
@@ -138,7 +136,6 @@ if __name__ == '__main__':
             best_spearman_val_pc = spearman_pc
             best_it = it
         scalar_accum.log(it, 'val', best_it=best_it, best_metric=best_spearman_val_pc, logger=logger, writer=writer)
-        # Trigger scheduler
         for fold in range(args.num_cvfolds):
             _, _, scheduler = cv_mgr.get(fold)
             if it != it_first:  # Don't step optimizers after resuming from checkpoint
@@ -162,9 +159,8 @@ if __name__ == '__main__':
                     torch.save({'config': config, 'model': cv_mgr.state_dict(), 'iteration': i, 'avg_val_loss': avg_val_loss, }, ckpt_path)
 
         best_results = pd.read_csv(os.path.join(ckpt_dir, f'results_{best_i}.csv'))
-        best_results['method'] = 'PDC-Net'
+        best_results['method'] = config.model.type
         df_metrics = eval_skempi_three_modes(best_results)
         df_metrics.to_csv(os.path.join(ckpt_dir, f'results_{best_i}_metrics.csv'), index=False)
-
     except KeyboardInterrupt:
         logger.info('Terminating...')

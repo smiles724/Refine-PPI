@@ -1,12 +1,11 @@
 import functools
-
 import math
+
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import roc_auc_score
 from torch.utils.data import DataLoader
-from tqdm.auto import tqdm
 
 from rde.datasets import SkempiABbindDataset
 from rde.utils.data import PaddingCollate
@@ -46,20 +45,21 @@ class SkempiDatasetManager(object):
         cfg = self.cfg
         dataset_ = functools.partial(SkempiABbindDataset, skempi_csv_path=cfg.data.skempi_csv_path, skempi_pdb_dir=cfg.data.skempi_pdb_dir, cache_dir=cfg.data.cache_dir,
                                      abbind_csv_path=cfg.data.get('abbind_csv_path', None), abbind_pdb_dir=cfg.data.get('abbind_pdb_dir', None), num_cvfolds=self.num_cvfolds,
-                                     cvfold_index=fold, transform=get_transform(cfg.data.transform), use_plm=cfg.data.get('use_plm', None), use_sasa=cfg.model.get('use_sasa', None),
-                                     reset=cfg.data.reset, predicted_structure=cfg.data.get('predicted_structure', None), )
-        train_dataset = dataset_(split='train')
-        val_dataset = dataset_(split='val')
+                                     cvfold_index=fold, transform=get_transform(cfg.data.get('transform', None)), use_plm=cfg.data.use_plm, surface=cfg.data.get('surface', None),
+                                     use_sasa=cfg.model.use_sasa, rde_feat_path=cfg.model.checkpoint.get('rde_feat_path', None), reset=cfg.data.reset,
+                                     pred_structure=cfg.data.get('pred_structure', None), )
+        trainset = dataset_(split='train')
+        valset = dataset_(split='val')
 
-        train_cplx = set([e['complex'] for e in train_dataset.entries])
-        val_cplx = set([e['complex'] for e in val_dataset.entries])
+        train_cplx = set([e['complex'] for e in trainset.entries])
+        val_cplx = set([e['complex'] for e in valset.entries])
         leakage = train_cplx.intersection(val_cplx)
         assert len(leakage) == 0, f'data leakage {leakage}'
 
-        train_loader = DataLoader(train_dataset, batch_size=cfg.train.batch_size, shuffle=True, collate_fn=PaddingCollate(), num_workers=self.num_workers)
+        train_loader = DataLoader(trainset, batch_size=cfg.train.batch_size, shuffle=True, collate_fn=PaddingCollate(), num_workers=self.num_workers)
         train_iterator = inf_iterator(train_loader)
-        val_loader = DataLoader(val_dataset, batch_size=cfg.train.batch_size * 2, shuffle=False, collate_fn=PaddingCollate(), num_workers=self.num_workers)
-        self.logger.info('Fold %d: Train %d, Val %d' % (fold, len(train_dataset), len(val_dataset)))
+        val_loader = DataLoader(valset, batch_size=cfg.train.get('val_batch_size', cfg.train.batch_size * 2), shuffle=False, collate_fn=PaddingCollate(), num_workers=self.num_workers)
+        self.logger.info('Fold %d: Train %d, Val %d' % (fold, len(trainset), len(valset)))
         return train_iterator, val_loader
 
     def get_train_iterator(self, fold):
