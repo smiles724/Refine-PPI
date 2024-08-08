@@ -1,0 +1,45 @@
+model:
+  checkpoint:
+    path: /nfs_beijing/linlinchao/git/RDE-PPI/trained_models/RDE.pt
+    type: CircularSplineRotamerDensityEstimator
+  type: ga
+  encoder:
+    node_feat_dim: 128
+    pair_feat_dim: 64
+    num_layers: 3
+  use_plm: False
+
+data:
+  target: dg
+  reset: False
+#  csv_path: /nfs_baoding_os/haokai/data/affinity/july_dilvery/dG/structure_model/regression/train.csv
+  root_path: /nfs_baoding_os/haokai/data/affinity/july_dilvery/dG/structure_model/regression/splited/train/scenario-4_case-2 # not ./
+  test_path: /nfs_baoding_os/haokai/data/affinity/july_dilvery/dG/structure_model/test.csv
+  cache_dir: ./data/T50_SKEMPI_SABDAB_cache
+  transform:
+  - type: select_atom
+    resolution: backbone+CB
+  - type: selected_interface_region_padding_patch
+    cutoff: 8.0   # 4.0 or 8.0
+    fix_size: True
+    fix_number: 128
+
+train:
+  loss_weights:
+    regression: 1.0
+  max_iters: 30_000
+  val_freq: 1000
+  batch_size: 32
+  seed: 2023
+  max_grad_norm: 100.0
+  optimizer:
+    type: adam
+    lr: 3.e-4  # lr should be small for ESM-2 embeddings (default: 3e-4)
+    weight_decay: 0.0
+    beta1: 0.9
+    beta2: 0.999
+  scheduler:
+    type: plateau
+    factor: 0.8
+    patience: 5
+    min_lr: 1.e-6

@@ -1,0 +1,56 @@
+model:
+  checkpoint:
+    path:
+  encoder:
+    node_feat_dim: 128
+    pair_feat_dim: 64
+    num_layers: 6
+    dropout: 0.2
+    num_nearest_neighbors: 8
+    norm_coors: False
+    update_coors_mean: False
+    update_coors_var: True
+    learnable_var: True
+  resolution: CA
+  use_plm: False
+  target: chi_angle
+
+data:
+  type: pdbredo_chain
+  pdbredo_dir: /nfs_beijing/linlinchao/git/RDE-PPI/data/PDB_REDO
+  clusters_path: ./data/pdbredo_clusters.txt
+  splits_path: ./data/pdbredo_splits.txt
+  processed_dir: ./data/PDB_REDO_processed_raw
+  transform:
+    - type: select_atom
+      resolution: backbone+CB    # Only backbone atoms and CB are visible to rotamer predictor
+    - type: focused_random_patch
+      focus_attr: focus_flag   # a randomly selected chain
+      seed_nbh_size: 32
+      patch_size: 128     # keep the same when ablation
+    - type: corrupt_chi_angle
+      ratio_mask: 1.0    # previously 0.4
+      maskable_flag_attr: focus_flag
+
+train:
+  loss_weights:
+    mse_1chis: 0.25
+    mse_2chis: 0.25
+    mse_3chis: 0.25
+    mse_4chis: 0.25
+  max_iters: 100_000
+  val_freq: 500
+  batch_size: 64
+  seed: 2023
+  max_grad_norm: 100.0
+  optimizer:
+    type: adam
+    lr: 1.e-4
+    weight_decay: 0.0
+    beta1: 0.9
+    beta2: 0.999
+  scheduler:
+    type: plateau
+    factor: 0.8
+    patience: 5
+    min_lr: 1.e-6

@@ -1,0 +1,1 @@
+from src.modules.encoders.egnn.egnn_pytorch import EGNN, EGNN_Network

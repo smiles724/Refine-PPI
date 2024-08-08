@@ -1,0 +1,60 @@
+model:
+  checkpoint:
+    path:  # ./trained_models/83000.pt
+    type: ProbabilityDensityCloud
+  encoder:
+    node_feat_dim: 128
+    pair_feat_dim: 64
+    num_layers: 3
+    refine_num_layers: 1
+    num_nearest_neighbors: 8
+    norm_coors: True
+    update_coors_mean: True
+    update_coors_var: True
+    learnable_var: True
+  pos:
+    recycle: 3
+    mask_length: 1    # any number larger than 0
+    mask_wt: False
+  resolution: backbone+CB
+  use_plm: False
+
+data:
+  type: pdbredo_chain
+  pdbredo_dir: /nfs_beijing/linlinchao/git/RDE-PPI/data/PDB_REDO
+  clusters_path: ./data/pdbredo_clusters.txt
+  splits_path: ./data/pdbredo_splits.txt
+  processed_dir: ./data/PDB_REDO_processed_raw
+  transform:
+    - type: select_atom
+      resolution: backbone+CB
+    - type: random_mask_pos_and_patch   # keep the residue order to initialize coordinates
+      focus_attr: focus_flag            # a randomly selected chain, in pdbredo_chain.py
+      seed_nbh_size: 32
+      patch_size: 128
+      flexible_span: True
+      mask_noise_scale: 1
+      mask_ratio: 0.05
+      mask_max_length: 7
+      dist_check: True
+      dist_threshold: 50
+
+train:
+  loss_weights:
+    pos_refine: 1.0
+  max_iters: 100_000
+  val_freq: 1000
+  batch_size: 16
+  seed: 2023
+  max_grad_norm: 100.0
+  optimizer:
+    type: adam
+    lr: 1.e-4
+    weight_decay: 0.0
+    beta1: 0.9
+    beta2: 0.999
+  scheduler:
+    type: plateau
+    factor: 0.8
+    patience: 5
+    min_lr: 1.e-6

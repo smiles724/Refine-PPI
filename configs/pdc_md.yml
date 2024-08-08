@@ -1,0 +1,47 @@
+model:
+  checkpoint:
+    path:
+  encoder:
+    node_feat_dim: 128
+    pair_feat_dim: 64
+    num_layers: 6
+    num_nearest_neighbors: 8
+    norm_coors: False
+    update_coors_mean: False
+    update_coors_var: True
+    learnable_var: True
+  use_plm: False
+  resolution: CA
+  target: rmsf
+
+data:
+  type: pdbredo_chain
+  md_pdb_dir: /nfs_baoding/sunshine/MD_Result_SKEMPI
+  cache_dir: ./data/md_preprocess
+  reset: False
+  transform:
+    - type: select_atom
+      resolution: backbone+CB
+    - type: random_patch
+      seed_nbh_size: 32
+      patch_size: 128
+
+train:
+  loss_weights:
+    rmsf: 1.0
+  max_iters: 10_0000
+  val_freq: 1000
+  batch_size: 64
+  seed: 2023
+  max_grad_norm: 100.0
+  optimizer:
+    type: adam
+    lr: 1.e-4
+    weight_decay: 0.0
+    beta1: 0.9
+    beta2: 0.999
+  scheduler:
+    type: plateau
+    factor: 0.8
+    patience: 5
+    min_lr: 1.e-6

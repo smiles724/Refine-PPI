@@ -1,0 +1,62 @@
+model:
+  type: equiformer
+  checkpoint:
+    path:
+  encoder:
+    node_feat_dim: 128
+    pair_feat_dim: 64
+    num_nearest_neighbors: 8
+    num_layers: 6
+  resolution: backbone+CB
+  use_plm: True
+  target:
+    chi_angle: False
+    pos_refine: False
+    contrastive: True
+  temperature: 0.07
+
+data:
+  type: pdbredo_chain
+  pdbredo_dir: /nfs_beijing/linlinchao/git/RDE-PPI/data/PDB_REDO
+  clusters_path: ./data/pdbredo_clusters.txt
+  splits_path: ./data/pdbredo_splits.txt
+  processed_dir: ./data/PDB_REDO_processed_raw
+  transform:
+    - type: select_atom
+      resolution: backbone+CB                     # Only backbone atoms and CB are visible to rotamer predictor
+    - type: random_mask_pos_and_multiple_patch    # keep the residue order to initialize coordinates
+      focus_attr: focus_flag                      # a randomly selected chain, in pdbredo_chain.py
+      seed_nbh_size: 32
+      patch_size: 128
+      mask_noise_scale: 1.0
+      mask_ratio: 0.15
+      mask_max_length: 20
+      num_patch: 2                               # only support <= 2 due to OOM
+#    - type: corrupt_chi_angle
+#      ratio_mask: 1.0
+#      maskable_flag_attr: focus_flag
+
+train:
+  loss_weights:
+    mse_1chis: 0.25
+    mse_2chis: 0.25
+    mse_3chis: 0.25
+    mse_4chis: 0.25
+    pos_refine: 1.0
+    contrastive: 1.0
+  max_iters: 100_000
+  val_freq: 1000
+  batch_size: 64
+  seed: 2023
+  max_grad_norm: 100.0
+  optimizer:
+    type: adam
+    lr: 5.e-5
+    weight_decay: 0.0
+    beta1: 0.9
+    beta2: 0.999
+  scheduler:
+    type: plateau
+    factor: 0.8
+    patience: 5
+    min_lr: 1.e-6
